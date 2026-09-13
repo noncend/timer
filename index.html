@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>剣 — 静寂のタイマー</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@200;300;400&family=Shippori+Mincho:wght@400;500&display=swap');
+
+  :root {
+    --sand:       #f5efe6;
+    --parchment:  #ede3d3;
+    --rice:       #faf6ef;
+    --bark:       #8b6340;
+    --moss:       #5a6e45;
+    --bamboo:     #7a9955;
+    --river:      #6b8f9e;
+    --honey:      #c49a3c;
+    --gold:       #d4aa50;
+    --amber-soft: #b8924a;
+    --ink:        #2c2015;
+    --ink-mid:    #4a3828;
+    --ink-light:  #7a6452;
+    --ink-faint:  #b8a898;
+    --ring-calm:  #7a9955;
+    --ring-warn:  #c49a3c;
+    --glass:      rgba(245,239,230,0.6);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    font-family: 'Shippori Mincho', 'Noto Serif JP', serif;
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: var(--rice);
+  }
+
+  /* Layered warm backgrounds */
+  .bg-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .bg-layer-1 {
+    background:
+      radial-gradient(ellipse 120% 80% at 15% 10%, rgba(122,153,85,0.12) 0%, transparent 55%),
+      radial-gradient(ellipse 80% 60% at 85% 85%, rgba(196,98,45,0.10) 0%, transparent 50%),
+      radial-gradient(ellipse 100% 70% at 50% 50%, rgba(237,227,211,0.8) 0%, transparent 80%),
+      linear-gradient(160deg, #faf4ea 0%, #f5ede0 35%, #ede0cc 70%, #f0e8d8 100%);
+  }
+
+  /* Ink wash horizon */
+  .bg-layer-2 {
+    background:
+      radial-gradient(ellipse 200% 30% at 50% 92%, rgba(90,110,69,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 150% 20% at 50% 100%, rgba(139,99,64,0.06) 0%, transparent 50%);
+  }
+
+  /* Subtle grain */
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    background-size: 200px;
+    opacity: 0.8;
+  }
+
+  /* Floating bamboo strokes — decorative SVG shapes */
+  .deco-svg {
+    position: fixed;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 420px;
+    padding: 52px 24px 44px;
+  }
+
+  /* Kamon-style top mark */
+  .kamon {
+    width: 28px;
+    height: 28px;
+    margin-bottom: 20px;
+    opacity: 0.45;
+  }
+
+  .title-block {
+    text-align: center;
+    margin-bottom: 44px;
+  }
+
+  .title-jp {
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 200;
+    font-size: 22px;
+    letter-spacing: 0.5em;
+    color: var(--ink-mid);
+    display: block;
+  }
+
+  .title-sub {
+    margin-top: 6px;
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 300;
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: var(--ink-faint);
+    display: block;
+    text-transform: uppercase;
+  }
+
+  /* Timer ring */
+  .timer-wrap {
+    position: relative;
+    width: 230px;
+    height: 230px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ring-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .ring-outer {
+    fill: none;
+    stroke: rgba(139,99,64,0.08);
+    stroke-width: 1;
+  }
+
+  .ring-track {
+    fill: none;
+    stroke: rgba(122,153,85,0.15);
+    stroke-width: 2;
+  }
+
+  .ring-progress {
+    fill: none;
+    stroke: var(--ring-calm);
+    stroke-width: 2;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1), stroke 1.5s ease;
+  }
+
+  .ring-progress.warning {
+    stroke: var(--ring-warn);
+  }
+
+  /* Inner decorative ring */
+  .ring-inner-deco {
+    fill: none;
+    stroke: rgba(139,99,64,0.07);
+    stroke-width: 0.5;
+    stroke-dasharray: 4 8;
+  }
+
+  .time-display {
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 200;
+    font-size: 62px;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    user-select: none;
+    line-height: 1;
+    position: relative;
+    z-index: 2;
+    transition: color 1s ease;
+  }
+
+  /* Phase label under time */
+  .phase-label {
+    position: absolute;
+    bottom: 36px;
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 300;
+    font-size: 10px;
+    letter-spacing: 0.5em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    transition: opacity 0.5s;
+    z-index: 2;
+  }
+
+  /* Controls */
+  .controls {
+    margin-top: 36px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn {
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 400;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    padding: 13px 28px;
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--moss);
+    border: 1px solid rgba(90,110,69,0.4);
+    color: var(--rice);
+    min-width: 150px;
+    text-align: center;
+  }
+
+  .btn-primary:hover {
+    background: #4e6040;
+    border-color: rgba(90,110,69,0.8);
+  }
+
+  .btn-primary:active { transform: scale(0.98); }
+
+  .btn-primary.paused {
+    background: var(--honey);
+    border-color: rgba(196,154,60,0.5);
+  }
+
+  .btn-primary.paused:hover {
+    background: var(--amber-soft);
+  }
+
+  .btn-reset {
+    background: transparent;
+    border: 1px solid rgba(122,100,82,0.25);
+    color: var(--ink-light);
+    font-size: 12px;
+    padding: 13px 18px;
+  }
+
+  .btn-reset:hover {
+    border-color: rgba(139,99,64,0.5);
+    color: var(--bark);
+  }
+
+  .btn-reset:active { transform: scale(0.98); }
+
+  /* Presets */
+  .presets {
+    margin-top: 22px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .preset-btn {
+    background: transparent;
+    border: 1px solid rgba(184,168,152,0.4);
+    color: var(--ink-faint);
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 300;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding: 8px 14px;
+    border-radius: 1px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+
+  .preset-btn:hover {
+    border-color: var(--bamboo);
+    color: var(--moss);
+  }
+
+  .preset-btn.active {
+    border-color: var(--moss);
+    color: var(--moss);
+    background: rgba(122,153,85,0.08);
+  }
+
+  /* Brush stroke separator */
+  .brush-sep {
+    margin: 44px 0 0;
+    width: 120px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(139,99,64,0.2), transparent);
+  }
+
+  /* Quote */
+  .quote-wrap {
+    margin-top: 28px;
+    text-align: center;
+    padding: 0 12px;
+  }
+
+  .quote-main {
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 300;
+    font-size: 12px;
+    line-height: 2;
+    color: var(--ink-mid);
+    letter-spacing: 0.06em;
+    font-style: italic;
+    opacity: 0.75;
+  }
+
+  .quote-attr {
+    margin-top: 10px;
+    font-family: 'Noto Serif JP', serif;
+    font-weight: 300;
+    font-size: 10px;
+    letter-spacing: 0.35em;
+    color: var(--ink-faint);
+    opacity: 0.6;
+  }
+
+  /* Finish pulse */
+  @keyframes finishPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .time-display.finished {
+    animation: finishPulse 2s ease-in-out 3;
+    color: var(--honey);
+  }
+
+  /* Seasonal deco elements */
+  .leaf {
+    position: fixed;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.06;
+  }
+
+  @media (max-width: 480px) {
+    .container { padding: 36px 16px 32px; }
+    .timer-wrap { width: 200px; height: 200px; }
+    .time-display { font-size: 52px; }
+    .presets { flex-wrap: wrap; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Background layers -->
+<div class="bg-layer bg-layer-1"></div>
+<div class="bg-layer bg-layer-2"></div>
+<div class="bg-layer bg-grain"></div>
+
+<!-- Decorative leaf shapes -->
+<svg class="leaf" style="top:-40px;right:-20px;width:340px;" viewBox="0 0 300 300">
+  <path d="M280,20 Q200,60 150,150 Q100,240 60,280 Q120,200 140,120 Q160,40 280,20Z" fill="#5a6e45"/>
+</svg>
+<svg class="leaf" style="bottom:-60px;left:-30px;width:280px;" viewBox="0 0 300 300">
+  <path d="M20,280 Q80,220 130,150 Q180,80 260,20 Q200,100 180,180 Q160,260 20,280Z" fill="#8b6340"/>
+</svg>
+<!-- Tiny bamboo accent top-left -->
+<svg class="deco-svg" style="top:30px;left:30px;opacity:0.07;width:20px;height:120px;" viewBox="0 0 20 120">
+  <rect x="8" y="0" width="4" height="25" rx="2" fill="#5a6e45"/>
+  <rect x="8" y="30" width="4" height="30" rx="2" fill="#5a6e45"/>
+  <rect x="8" y="65" width="4" height="30" rx="2" fill="#5a6e45"/>
+  <rect x="8" y="100" width="4" height="20" rx="2" fill="#5a6e45"/>
+  <line x1="8" y1="27" x2="2" y2="22" stroke="#5a6e45" stroke-width="1.5"/>
+  <line x1="12" y1="62" x2="18" y2="57" stroke="#5a6e45" stroke-width="1.5"/>
+  <line x1="8" y1="97" x2="2" y2="92" stroke="#5a6e45" stroke-width="1.5"/>
+</svg>
+<svg class="deco-svg" style="bottom:30px;right:30px;opacity:0.07;width:20px;height:100px;" viewBox="0 0 20 100">
+  <rect x="8" y="0" width="4" height="22" rx="2" fill="#8b6340"/>
+  <rect x="8" y="27" width="4" height="28" rx="2" fill="#8b6340"/>
+  <rect x="8" y="60" width="4" height="25" rx="2" fill="#8b6340"/>
+  <line x1="12" y1="24" x2="18" y2="19" stroke="#8b6340" stroke-width="1.5"/>
+  <line x1="8" y1="57" x2="2" y2="52" stroke="#8b6340" stroke-width="1.5"/>
+</svg>
+
+<div class="container">
+
+  <!-- Kamon circle mark -->
+  <svg class="kamon" viewBox="0 0 28 28">
+    <circle cx="14" cy="14" r="12" fill="none" stroke="#8b6340" stroke-width="0.8"/>
+    <circle cx="14" cy="14" r="8" fill="none" stroke="#8b6340" stroke-width="0.5"/>
+    <!-- 4-petal simple kamon -->
+    <ellipse cx="14" cy="9" rx="2" ry="4" fill="#8b6340"/>
+    <ellipse cx="14" cy="19" rx="2" ry="4" fill="#8b6340"/>
+    <ellipse cx="9" cy="14" rx="4" ry="2" fill="#8b6340"/>
+    <ellipse cx="19" cy="14" rx="4" ry="2" fill="#8b6340"/>
+    <circle cx="14" cy="14" r="1.5" fill="#faf6ef"/>
+  </svg>
+
+  <div class="title-block">
+    <span class="title-jp">静　寂</span>
+    <span class="title-sub">剣の道 · musashi</span>
+  </div>
+
+  <div class="timer-wrap">
+    <svg class="ring-svg" viewBox="0 0 230 230">
+      <circle class="ring-outer"      cx="115" cy="115" r="110"/>
+      <circle class="ring-inner-deco" cx="115" cy="115" r="100"/>
+      <circle class="ring-track"      cx="115" cy="115" r="105"/>
+      <circle class="ring-progress"   cx="115" cy="115" r="105" id="ringProgress"/>
+    </svg>
+    <div class="time-display" id="timeDisplay">1:00</div>
+    <div class="phase-label" id="phaseLabel">静寂</div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="startBtn" onclick="toggleTimer()">始める</button>
+    <button class="btn btn-reset"   onclick="resetTimer()">戻る</button>
+  </div>
+
+  <div class="presets">
+    <button class="preset-btn" onclick="setPreset(30)">30秒</button>
+    <button class="preset-btn" onclick="setPreset(45)">45秒</button>
+    <button class="preset-btn active" onclick="setPreset(60)">60秒</button>
+    <button class="preset-btn" onclick="setPreset(90)">90秒</button>
+  </div>
+
+  <div class="brush-sep"></div>
+
+  <div class="quote-wrap">
+    <div class="quote-main">「今日の己に勝り、昨日の己に勝る」</div>
+    <div class="quote-attr">― 宮本武蔵 · 五輪書</div>
+  </div>
+
+</div>
+
+<script>
+  const R = 105;
+  const CIRC = 2 * Math.PI * R;
+
+  let totalSeconds = 60;
+  let remaining    = 60;
+  let running      = false;
+  let interval     = null;
+
+  const ring      = document.getElementById('ringProgress');
+  const display   = document.getElementById('timeDisplay');
+  const startBtn  = document.getElementById('startBtn');
+  const phaseLabel = document.getElementById('phaseLabel');
+
+  ring.style.strokeDasharray  = CIRC;
+  ring.style.strokeDashoffset = 0;
+
+  const phases = [
+    { frac: 1.0,  label: '静寂',  jp: '集中せよ' },
+    { frac: 0.66, label: '精進',  jp: '進め' },
+    { frac: 0.33, label: '気力',  jp: '最後まで' },
+    { frac: 0.0,  label: '完了',  jp: '成し遂げた' },
+  ];
+
+  function getPhaseLabel(frac) {
+    for (let p of phases) {
+      if (frac >= p.frac) return p.label;
+    }
+    return phases[phases.length - 1].label;
+  }
+
+  function setRing(frac) {
+    ring.style.strokeDashoffset = CIRC * (1 - frac);
+    if (frac <= 0.2) ring.classList.add('warning');
+    else ring.classList.remove('warning');
+    phaseLabel.textContent = getPhaseLabel(frac);
+  }
+
+  function formatTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function render() {
+    display.textContent = formatTime(remaining);
+    setRing(remaining / totalSeconds);
+  }
+
+  function toggleTimer() {
+    if (running) pause();
+    else { if (remaining === 0) return; start(); }
+  }
+
+  function start() {
+    running = true;
+    startBtn.textContent = '止まれ';
+    startBtn.classList.add('paused');
+    display.classList.remove('finished');
+    interval = setInterval(() => {
+      if (remaining <= 0) { finish(); return; }
+      remaining--;
+      render();
+      if (remaining === 0) finish();
+    }, 1000);
+  }
+
+  function pause() {
+    running = false;
+    clearInterval(interval);
+    startBtn.textContent = '始める';
+    startBtn.classList.remove('paused');
+    phaseLabel.textContent = '一息';
+  }
+
+  function finish() {
+    clearInterval(interval);
+    running = false;
+    remaining = 0;
+    render();
+    startBtn.textContent = '始める';
+    startBtn.classList.remove('paused');
+    display.classList.add('finished');
+    phaseLabel.textContent = '完了';
+    ring.style.strokeDashoffset = CIRC;
+    ring.classList.remove('warning');
+  }
+
+  function resetTimer() {
+    pause();
+    remaining = totalSeconds;
+    display.classList.remove('finished');
+    phaseLabel.textContent = '静寂';
+    render();
+  }
+
+  function setPreset(s) {
+    pause();
+    totalSeconds = s;
+    remaining    = s;
+    display.classList.remove('finished');
+    phaseLabel.textContent = '静寂';
+    render();
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.textContent) === s);
+    });
+  }
+
+  render();
+</script>
+</body>
+</html>
